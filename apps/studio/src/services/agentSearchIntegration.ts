@@ -6,13 +6,13 @@
  * and knowledge sources, with auto-reindex on changes.
  */
 
-import { AgentSearch } from '../search/AgentSearch.js';
+import { AgentSearch } from '@modular/context';
 import type {
   AgentConfig,
   KnowledgeSource,
   ScoredAgent,
   ScoredKnowledge,
-} from '../search/AgentSearch.js';
+} from '@modular/context';
 
 let _searchInstance: AgentSearch | null = null;
 let _lastIndexHash = '';

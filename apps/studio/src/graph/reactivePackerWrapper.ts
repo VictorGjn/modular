@@ -17,7 +17,7 @@ import {
   type DepthLevel,
   type PackedFile,
   type CompactionConfig,
-} from '../context/ReactiveCompaction.js';
+} from '@modular/context';
 
 /** Map numeric depth (0-4) to named DepthLevel. */
 function numericToDepthLevel(depth: number): DepthLevel {

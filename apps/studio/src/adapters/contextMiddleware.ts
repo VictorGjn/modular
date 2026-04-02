@@ -2,8 +2,8 @@
  * Context Middleware Adapter.
  */
 
-import { ContextCollapse } from '../context/ContextCollapse.js';
-import { ToolUseSummary, type ToolCall } from '../context/ToolUseSummary.js';
+import { collapseContext } from '@modular/context';
+import { summarizeToolUse, type ToolCall } from '@modular/context';
 
 const collapse = new ContextCollapse();
 const toolSummary = new ToolUseSummary();

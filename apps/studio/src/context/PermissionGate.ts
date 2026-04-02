@@ -8,7 +8,7 @@
  * from the context window. What the model can't see, it can't hallucinate about.
  */
 
-import type { PromptSection } from '../prompt/SystemPromptBuilder.js';
+import type { PromptSection } from '@modular/context';
 
 export interface PermissionRule {
   denyChannels: Set<string>;     // knowledge channel IDs to hide

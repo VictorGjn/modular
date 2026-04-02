@@ -7,10 +7,10 @@
 
 // ── Phase 1: Core features ──
 
-export { SystemPromptBuilder } from '../prompt/SystemPromptBuilder.js';
-export type { PromptSection, BuiltPrompt } from '../prompt/SystemPromptBuilder.js';
+export { SystemPromptBuilder } from '@modular/context';
+export type { PromptSection, BuiltPrompt } from '@modular/context';
 
-export { ReactiveCompaction } from '../context/ReactiveCompaction.js';
+export { ReactiveCompaction } from '@modular/context';
 export type {
   ContextSignal,
   DepthLevel,
@@ -18,24 +18,24 @@ export type {
   PackedFile,
   AssembledContext,
   CompactionConfig,
-} from '../context/ReactiveCompaction.js';
+} from '@modular/context';
 
-export { MemoryStore, MemoryExtractor } from '../memory/MemoryStore.js';
-export type { Memory, MemoryType, ExtractedMemory } from '../memory/MemoryStore.js';
+export { MemoryStore, MemoryExtractor } from '@modular/context';
+export type { Memory, MemoryType, ExtractedMemory } from '@modular/context';
 
-export { ContextCollapse } from '../context/ContextCollapse.js';
-export type { ConversationTurn } from '../context/ContextCollapse.js';
+export { ContextCollapse } from '@modular/context';
+export type { ConversationTurn } from '@modular/context';
 
-export { ToolUseSummary } from '../context/ToolUseSummary.js';
-export type { ToolCall, ToolCallGroup } from '../context/ToolUseSummary.js';
+export { ToolUseSummary } from '@modular/context';
+export type { ToolCall, ToolCallGroup } from '@modular/context';
 
-export { AgentSearch } from '../search/AgentSearch.js';
+export { AgentSearch } from '@modular/context';
 export type {
   AgentConfig as SearchableAgentConfig,
   KnowledgeSource,
   ScoredAgent,
   ScoredKnowledge,
-} from '../search/AgentSearch.js';
+} from '@modular/context';
 
 // ── Phase 2: Lightweight adapters (src/adapters/) ──
 

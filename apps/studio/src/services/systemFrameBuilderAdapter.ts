@@ -7,8 +7,8 @@
  * XML-tagged section format.
  */
 
-import { SystemPromptBuilder } from '../prompt/SystemPromptBuilder.js';
-import type { BuiltPrompt } from '../prompt/SystemPromptBuilder.js';
+import { SystemPromptBuilder } from '@modular/context';
+import type { BuiltPrompt } from '@modular/context';
 import type { ProvenanceSummary } from '../types/provenance.js';
 
 export interface SystemFrameInput {

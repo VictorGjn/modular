@@ -79,7 +79,10 @@
     "remark-gfm": "^4.0.1",
     "sql.js": "^1.14.1",
     "zod": "^4.0.0",
-    "zustand": "^5.0.11"
+    "zustand": "^5.0.11",
+    "@modular/core": "workspace:*",
+    "@modular/worktree": "workspace:*",
+    "@modular/context": "workspace:*"
   },
   "lint-staged": {
     "*.{ts,tsx}": [

@@ -2,7 +2,7 @@
  * Reactive Packer Adapter.
  */
 
-import { ReactiveCompaction, type ContextSignal } from '../context/ReactiveCompaction.js';
+import { ReactiveCompaction, type ContextSignal } from '@modular/context';
 
 export function withReactiveCompaction(
   packFn: (files: any[], budget: number, depth: string) => string,

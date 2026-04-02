@@ -2,7 +2,7 @@
  * Search Adapter.
  */
 
-import { AgentSearch } from '../search/AgentSearch.js';
+import { AgentSearch } from '@modular/context';
 
 let _search: AgentSearch | null = null;
 

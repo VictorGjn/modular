@@ -22,7 +22,7 @@ import { summarizeStepOutput, saveStepSummary, initSummaryTable, loadStepSummari
 import { generateUltraPlan, shouldTriggerUltraplan } from '../src/orchestrator/ultraplan.js';
 import { runBackgroundTasks, type BackgroundTaskDef } from '../src/background/backgroundRunner.js';
 import { runConsolidation } from '../src/background/memoryConsolidator.js';
-import { prepareAgentWorktree } from '../src/worktree/worktreeManager.js';
+import { prepareAgentWorktree } from '@modular/worktree';
 import { resolvePreset, listPresets } from '../src/presets/index.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
