@@ -9,6 +9,13 @@
  *   - StepExecutor uses explicit FSM states
  */
 
+
+// ── Re-export shared types from @modular/core ────────────────────────────────
+// These types are the single source of truth, shared with Studio.
+export type { Fact, FactStatus, TraceEvent, TraceEventType } from '@modular/core';
+export { DepthLevel as SharedDepthLevel, ContextSpec as SharedContextSpec } from '@modular/core';
+export { estimateCost } from '@modular/core';
+
 import { z } from 'zod';
 import type { HookDefinition } from './hooks/hookRunner.js';
 

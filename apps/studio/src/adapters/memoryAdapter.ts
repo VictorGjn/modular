@@ -2,7 +2,7 @@
  * Memory Adapter.
  */
 
-import { MemoryStore, MemoryExtractor } from '../memory/MemoryStore.js';
+import { MemoryStore, MemoryExtractor } from '@modular/context';
 
 let _store: MemoryStore | null = null;
 const _extractor = new MemoryExtractor();

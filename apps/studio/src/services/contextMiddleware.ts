@@ -6,10 +6,10 @@
  * the context window.
  */
 
-import { ContextCollapse } from '../context/ContextCollapse.js';
-import type { ConversationTurn } from '../context/ContextCollapse.js';
-import { ToolUseSummary } from '../context/ToolUseSummary.js';
-import type { ToolCall } from '../context/ToolUseSummary.js';
+import { ContextCollapse } from '@modular/context';
+import type { ConversationTurn } from '@modular/context';
+import { ToolUseSummary } from '@modular/context';
+import type { ToolCall } from '@modular/context';
 
 export interface ContextMiddlewareConfig {
   /** Max tokens for collapsed tool outputs. Default: 200 */

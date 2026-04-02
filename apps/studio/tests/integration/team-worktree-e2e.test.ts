@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, existsSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { prepareAgentWorktree, listTeamWorktrees } from '../../server/services/worktreeManager';
+import { prepareAgentWorktree, listTeamWorktrees } from '@modular/worktree';
 
 // Check if git is available
 let gitAvailable = false;

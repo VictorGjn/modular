@@ -7,8 +7,8 @@
  * - Provides search during context assembly
  */
 
-import { MemoryStore, MemoryExtractor } from '../memory/MemoryStore.js';
-import type { Memory } from '../memory/MemoryStore.js';
+import { MemoryStore, MemoryExtractor } from '@modular/context';
+import type { Memory } from '@modular/context';
 
 let _storeInstance: MemoryStore | null = null;
 

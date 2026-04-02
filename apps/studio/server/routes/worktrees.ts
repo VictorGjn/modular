@@ -5,7 +5,7 @@ import {
   getWorktreeStatus,
   rebaseWorktree,
   mergeWorktreeIntoBase,
-} from '../services/worktreeManager.js';
+} from '@modular/worktree';
 
 const router = Router();
 

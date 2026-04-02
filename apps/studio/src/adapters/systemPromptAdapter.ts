@@ -2,7 +2,7 @@
  * System Prompt Adapter.
  */
 
-import { SystemPromptBuilder } from '../prompt/SystemPromptBuilder.js';
+import { SystemPromptBuilder } from '@modular/context';
 
 export function buildCacheOptimizedPrompt(parts: {
   role: string;

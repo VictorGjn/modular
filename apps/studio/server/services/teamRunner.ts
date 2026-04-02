@@ -1,5 +1,5 @@
 import { runAgent } from './agentRunner.js';
-import { prepareAgentWorktree } from './worktreeManager.js';
+import { prepareAgentWorktree } from '@modular/worktree';
 import type { AgentRunConfig, AgentRunResult, ProgressCallback } from './agentRunner.js';
 import type { ExtractedFact } from './factExtractor.js';
 

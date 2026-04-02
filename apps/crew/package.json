@@ -39,7 +39,12 @@
     "ora": "^8.0.0",
     "ulid": "^2.3.0",
     "yaml": "^2.4.0",
-    "zod": "^3.23.0"
+    "zod": "^3.23.0",
+    "@modular/core": "workspace:*",
+    "@modular/providers": "workspace:*",
+    "@modular/harness": "workspace:*",
+    "@modular/worktree": "workspace:*",
+    "@modular/context": "workspace:*"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.0",
