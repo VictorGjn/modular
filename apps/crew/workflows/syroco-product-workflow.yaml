@@ -1,0 +1,619 @@
+# yaml-language-server: $schema=../schema/team.schema.json
+
+# ─────────────────────────────────────────────────────────────────────
+# product-workflow.yaml — Syroco Product Workflow E2E
+#
+# 15 agents, 6 stages, 18 facts.
+#
+# Context Engineering model (from modular-patchbay):
+#   Each agent gets sources at PER-SOURCE depth, not one global depth.
+#   - resolution: how to find relevant content (keyword|semantic|graph|semantic_graph)
+#   - sources: typed URIs at individual depths + knowledge types + token caps
+#   - adaptiveRetrieval: detect hedging in output, re-fetch, retry
+#   - traversal: follow Notion relations, code imports, doc references
+#   - knowledgePriority: when budget is tight, which knowledge types survive
+#
+# Source URI schemes:
+#   step://{stepName}         — fact from previous step
+#   notion://{database_id}    — Notion database query
+#   file://{path}             — local file or directory
+#   repo://{owner}/{repo}     — GitHub repo (indexed)
+#   cache://{skill}/{file}    — cached data from a skill
+#
+# ─────────────────────────────────────────────────────────────────────
+
+$schema: "../schema/team.schema.json"
+version: 1
+name: syroco-product-workflow
+description: >
+  End-to-end product workflow with full context engineering.
+  15 agents, 6 stages: Collect (4) → Prioriser (1) → Discovery (1) →
+  Solution (2) → Delivery (2) → Post-Ship (5).
+
+defaults:
+  provider: anthropic
+  model: claude-sonnet-4-20250514
+  maxTurns: 10
+  tokenBudget: 16000
+  maxOutputTokens: 4096
+
+budget:
+  maxCost: 15.00
+  maxTokens: 1500000
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  STAGE 1: COLLECT
+# ═══════════════════════════════════════════════════════════════════
+
+flow:
+
+  collect:
+    parallel:
+
+      # ── Signal Scanner (Gmail → Notion) ──────────────────────────
+      signal-scanner:
+        agent:
+          system: |
+            You are a product signal extraction agent for Syroco.
+            Scan Gmail "OnWatch" label (Label_4137808518805401777) for emails from vessel captains.
+            Filter out: onwatch@syro.co, noreply, EASY NOON subjects.
+            Map sender domains to clients (KCC=@vsl.klaveness.com, Odfjell=@odfjell.com, etc).
+            Extract feature requests, complaints, bugs. Categorize into 15 themes.
+            Dedup against Notion Signals DB (2fb15f7a-f269-81ef-b9d1-e72380767ebf).
+            Create new signals or reinforce existing ones with comments.
+            Properties: Name, Client, Product, Category, Priority, Status=Submitted,
+            Source Type=User_Feedback, Details, User Quote, Vessel, Stakeholder, Submitted At.
+          tools: [gmail_search, gmail_read, notion_query, notion_create_page, notion_add_comment]
+        publishes: [new_signals]
+        context:
+          tokenBudget: 12000
+          resolution: keyword                    # all sources are known, no discovery needed
+          sources:
+            - uri: "file://skills/sauna/onwatch-signal-scan/SKILL.md"
+              depth: full                        # needs the complete extraction rules
+              knowledgeType: framework
+            - uri: "notion://2fb15f7a-f269-81ef"  # Signals DB (existing, for dedup)
+              depth: headlines                   # just titles + client for dedup check
+              knowledgeType: ground_truth
+              maxTokens: 3000
+            - uri: "cache://notion/signal_category_counts.json"
+              depth: full                        # small file, need exact counts
+              knowledgeType: evidence
+            - uri: "file://documents/00 - Knowledge/Products/OVERVIEW.md"
+              depth: mention                     # minimal product awareness
+              knowledgeType: ground_truth
+
+      # ── Granola Signal Extractor (Meetings → Notion) ─────────────
+      granola-extractor:
+        agent:
+          system: |
+            You are a meeting signal extraction agent for Syroco.
+            Scan Granola meetings from last 24h (MCP: https://mcp.granola.ai/mcp).
+            Include meetings with external participants (non-@syro.co) or client keyword matches.
+            Extract feature requests, pain points, competitive mentions from transcripts.
+            Infer client from participant domains. Categorize into 15 themes.
+            Dedup against Notion Signals DB (2fb15f7a-f269-81ef-b9d1-e72380767ebf).
+            Same Notion properties as signal-scanner.
+          tools: [granola_search_meetings, granola_get_transcript, notion_query, notion_create_page]
+        publishes: [meeting_signals]
+        context:
+          tokenBudget: 14000
+          resolution: keyword
+          sources:
+            - uri: "notion://2fb15f7a-f269-81ef"  # Signals DB (dedup)
+              depth: headlines
+              knowledgeType: ground_truth
+              maxTokens: 3000
+            - uri: "cache://notion/theme_pages.json"
+              depth: full                        # need 15 theme names for categorization
+              knowledgeType: framework
+            - uri: "file://documents/00 - Knowledge/Products/OVERVIEW.md"
+              depth: summary                     # product awareness for categorization
+              knowledgeType: ground_truth
+            - uri: "file://documents/00 - Knowledge/Users/PERSONAS.md"
+              depth: headlines                   # know who the users are
+              knowledgeType: framework
+
+
+  # ── Signal Aggregator ──────────────────────────────────────────
+  signal-aggregator:
+    after: [collect]
+    agent:
+      system: |
+        You are a product signal aggregation agent.
+        Query ALL active signals from Notion DB (2fb15f7a-f269-81ef-b9d1-e72380767ebf, Status != Parked).
+        Group by Category, count per theme, group by Client within each theme.
+        Score: theme_score = signal_count x unique_client_count x priority_weight (HIGH=3, MED=2, LOW=1).
+        Detect emerging themes (count increased since last run).
+        Update 15 Signal Theme pages under index (33015f7a-f269-8133-9657-c957e1ec0b3b).
+        Post digest to Slack #signals (C0AP89M4CJH).
+      tools: [notion_query, notion_update_page, slack_post_message]
+    requires: [new_signals, meeting_signals]
+    publishes: [aggregated_themes, digest_posted]
+    context:
+      tokenBudget: 20000
+      resolution: keyword
+      sources:
+        - uri: "step://new_signals"
+          depth: full                          # primary input: what was just collected
+          knowledgeType: evidence
+        - uri: "step://meeting_signals"
+          depth: full                          # primary input: meeting-sourced signals
+          knowledgeType: evidence
+        - uri: "cache://notion/signal_category_counts.json"
+          depth: full                          # previous counts for delta detection
+          knowledgeType: evidence
+        - uri: "cache://notion/theme_pages.json"
+          depth: detail                        # theme page IDs for updating
+          knowledgeType: framework
+        - uri: "notion://2fb15f7a-f269-81ef"   # Signals DB (full query for counts)
+          depth: summary                       # property values, not full content
+          knowledgeType: ground_truth
+      traversal:
+        followRelations: true                  # Signal → Opportunity links (what's already covered)
+        maxHops: 1
+
+
+  # ── HubSpot Client Priority (STUBBED) ──────────────────────────
+  hubspot-enrichment:
+    after: [signal-aggregator]
+    agent:
+      model: claude-haiku-4-20250514
+      system: |
+        STUBBED: HubSpot API not available.
+        Publish static client weights from deal pipeline:
+        GEOGAS:266k, Odfjell:210k, UHL:162k, LDC:142k, Knutsen:101k,
+        Marfret:97k, Nirint:77k, KCC:36k. Source: static_pipeline_data.
+      tools: []
+    requires: [aggregated_themes]
+    publishes: [client_weights]
+    context:
+      tokenBudget: 2000
+      resolution: keyword
+      sources:
+        - uri: "step://aggregated_themes"
+          depth: mention                     # only need client names from the theme matrix
+          knowledgeType: evidence
+    timeout: 30
+
+
+  # ═══════════════════════════════════════════════════════════════════
+  #  STAGE 2: PRIORISER
+  # ═══════════════════════════════════════════════════════════════════
+
+  opportunity-creator:
+    after: [hubspot-enrichment]
+    agent:
+      system: |
+        You are an opportunity identification agent for Syroco.
+        Identify themes with 3+ unlinked signals (Opportunities relation empty).
+        Score each: opportunity_score = weighted_signals x (1 + kr_alignment) x client_diversity_bonus.
+        client_diversity_bonus: 1 client=1.0, 2-3=1.5, 4+=2.0.
+        Check KR alignment against Key Results DB (2fb15f7a-f269-81ad-a9f4-f31790c9e832).
+        Check existing Opportunities DB (2fb15f7a-f269-8117-aa44-de4243c71ce6) to avoid duplicates.
+        For top 3 candidates, generate: name, problem statement (from signal quotes),
+        evidence (signal list), impact estimate, suggested KR link.
+        Post suggestions to Slack. DO NOT create opportunities without human confirmation.
+      tools: [notion_query, slack_post_message]
+    requires: [aggregated_themes, client_weights]
+    publishes: [opportunity_suggestions]
+    approval: true
+    context:
+      tokenBudget: 24000
+      resolution: semantic                     # need to match theme concepts to KR descriptions
+      adaptiveRetrieval: true                  # if KR alignment scoring is uncertain, fetch more
+      knowledgePriority: [framework, evidence, ground_truth]
+      sources:
+        - uri: "step://aggregated_themes"
+          depth: full                          # primary scoring input: theme matrix with counts
+          knowledgeType: evidence
+        - uri: "step://client_weights"
+          depth: full                          # scoring factor: per-client weighted ARR
+          knowledgeType: evidence
+        - uri: "notion://2fb15f7a-f269-81ad"   # Key Results DB
+          depth: detail                        # need KR titles + descriptions for alignment
+          knowledgeType: framework
+        - uri: "notion://2fb15f7a-f269-8117"   # Existing Opportunities DB
+          depth: headlines                     # just titles + status for dedup
+          knowledgeType: ground_truth
+          maxTokens: 3000
+        - uri: "file://documents/00 - Knowledge/Products/OVERVIEW.md"
+          depth: mention                       # minimal product context
+          knowledgeType: ground_truth
+      traversal:
+        followRelations: true                  # KR → Objective → Strategy (strategic context)
+        followDocs: true
+        maxHops: 2
+
+
+  # ═══════════════════════════════════════════════════════════════════
+  #  STAGE 3: DISCOVERY
+  # ═══════════════════════════════════════════════════════════════════
+
+  discovery-enrichment:
+    after: [opportunity-creator]
+    agent:
+      tokenBudget: 40000
+      system: |
+        You are a discovery research agent for Syroco.
+        For a given Opportunity, run 6 parallel research tracks:
+        1. Signal deep-dive: query Signals DB for all matching theme signals, extract quotes + client breakdown
+        2. Client context: build profiles (deal ARR, vessels, contacts) from Notion + client_weights
+        3. Competitive analysis: web search for "[theme] maritime software StormGeo DTN"
+        4. Industry analogies: how aviation/logistics solve similar problems
+        5. Granola meeting context: search transcripts for theme keywords, extract decisions
+        6. Email context: search Gmail for internal discussions on theme (last 90 days, exclude OnWatch)
+        Synthesize into a Discovery Brief. Save to Notion Opportunity page body.
+        Also save to documents/01 - Discovery/{Name}/discovery-brief.md.
+      tools: [notion_query, notion_update_page, exa_search, granola_search_meetings, gmail_search, web_search]
+    requires: [opportunity_suggestions]
+    publishes: [discovery_brief]
+    context:
+      tokenBudget: 40000
+      resolution: semantic_graph               # full discovery: embedding entry points + graph traversal
+      adaptiveRetrieval: true                  # exploratory research: re-fetch when uncertain
+      knowledgePriority: [evidence, signal, ground_truth, framework]
+      sources:
+        - uri: "step://opportunity_suggestions"
+          depth: full                          # the specific opportunity to research
+          knowledgeType: hypothesis
+        - uri: "notion://2fb15f7a-f269-81ef"   # Signals DB (theme-filtered)
+          depth: full                          # need complete signals: quotes, details, vessels
+          knowledgeType: signal
+          maxTokens: 12000
+        - uri: "step://client_weights"
+          depth: detail                        # client ARR context for impact assessment
+          knowledgeType: evidence
+        - uri: "file://documents/00 - Knowledge/Market/LANDSCAPE.md"
+          depth: detail                        # existing competitive intel
+          knowledgeType: evidence
+        - uri: "file://documents/00 - Knowledge/Products/"
+          depth: summary                       # current product capabilities
+          knowledgeType: ground_truth
+          maxTokens: 4000
+        - uri: "file://documents/00 - Knowledge/Users/PERSONAS.md"
+          depth: detail                        # user profiles for context
+          knowledgeType: framework
+      traversal:
+        followRelations: true                  # Signal → Opportunity → KR → Objective chain
+        followDocs: true
+        maxHops: 3
+    timeout: 300
+
+
+  # ═══════════════════════════════════════════════════════════════════
+  #  STAGE 4: SOLUTION
+  # ═══════════════════════════════════════════════════════════════════
+
+  prd-generator:
+    after: [discovery-enrichment]
+    agent:
+      tokenBudget: 40000
+      system: |
+        You are a PRD writing agent for Syroco.
+        Transform a Discovery Brief + focus brief into a comprehensive PRD.
+        Gather context from: product docs (LIVE.md, FLEET.md, REPORTS.md),
+        architecture docs, Granola meeting decisions, codebase structure.
+        Sections: Problem Statement, Context & Prior Decisions, Solution Overview,
+        System Architecture, Backend/Frontend Integration, API Contracts, Config Parameters,
+        Acceptance Criteria (numbered, MoSCoW), Technical Risks, Implementation Phases,
+        Test Plan (Given/When/Then from ACs), Success Metrics (with targets + measurement).
+        Save to documents/03 - Solutions/YYYY-MM-DD_PRD_Feature_Name.md.
+      tools: [file_read, web_search, granola_search_meetings, notion_query]
+    requires: [discovery_brief]
+    publishes: [prd_document, acceptance_criteria]
+    approval: true
+    context:
+      tokenBudget: 40000
+      resolution: semantic_graph               # need to find architecturally related code + docs
+      adaptiveRetrieval: true                  # PRDs need high accuracy, retry on uncertainty
+      knowledgePriority: [ground_truth, framework, evidence, signal]
+      sources:
+        - uri: "step://discovery_brief"
+          depth: full                          # primary input: the complete discovery research
+          knowledgeType: evidence
+        - uri: "file://documents/00 - Knowledge/Products/INFRASTRUCTURE.md"
+          depth: detail                        # system architecture, service topology
+          knowledgeType: ground_truth
+        - uri: "file://documents/00 - Knowledge/Products/LIVE.md"
+          depth: summary                       # Live app current features
+          knowledgeType: ground_truth
+        - uri: "file://documents/00 - Knowledge/Products/FLEET.md"
+          depth: summary                       # Fleet app current features
+          knowledgeType: ground_truth
+        - uri: "file://documents/00 - Knowledge/Products/REPORTS.md"
+          depth: summary                       # NR backend features
+          knowledgeType: ground_truth
+        - uri: "file://documents/00 - Knowledge/Products/API_REFERENCE.md"
+          depth: detail                        # existing API contracts to align with
+          knowledgeType: ground_truth
+        - uri: "cache://github/syroco_repos.json"
+          depth: summary                       # repo versions, tech stack, core modules
+          knowledgeType: framework
+        - uri: "file://documents/03 - Solutions/"
+          depth: headlines                     # existing PRDs for format precedent
+          knowledgeType: artifact
+          maxTokens: 2000
+      traversal:
+        followImports: true                    # code: follow import chains from entry points
+        followDocs: true                       # cross-type: code → doc → test
+        followTests: true                      # include test patterns for the test plan section
+        maxHops: 2
+
+  test-plan-generator:
+    after: [prd-generator]
+    agent:
+      system: |
+        You are a test plan generator for Syroco.
+        Read the PRD's Acceptance Criteria section.
+        For each MUST AC: generate Given/When/Then test scenario.
+        For each API endpoint: generate happy path + error test case.
+        Identify regression risks by cross-referencing LIVE.md, FLEET.md, REPORTS.md.
+        Generate Playwright skeleton (TypeScript) with test.describe blocks.
+        Think about edge cases: null inputs, max values, offline vessel scenarios, permissions.
+        Append Test Plan to the PRD file. Save Playwright file alongside.
+      tools: [file_read, file_write]
+    requires: [prd_document, acceptance_criteria]
+    publishes: [test_plan]
+    context:
+      tokenBudget: 16000
+      resolution: graph                        # follow from ACs → code paths → existing tests
+      sources:
+        - uri: "step://acceptance_criteria"
+          depth: full                          # primary input: every AC must map to a test
+          knowledgeType: ground_truth
+        - uri: "step://prd_document"
+          depth: detail                        # API contracts + architecture for integration tests
+          knowledgeType: ground_truth
+        - uri: "file://documents/00 - Knowledge/Products/LIVE.md"
+          depth: headlines                     # feature list for regression risk assessment
+          knowledgeType: ground_truth
+        - uri: "file://documents/00 - Knowledge/Products/FLEET.md"
+          depth: headlines
+          knowledgeType: ground_truth
+        - uri: "file://documents/00 - Knowledge/Products/REPORTS.md"
+          depth: headlines
+          knowledgeType: ground_truth
+      traversal:
+        followTests: true                      # find existing test patterns in the codebase
+        followImports: true                    # trace AC → code → dependencies
+        maxHops: 2
+
+
+  # ═══════════════════════════════════════════════════════════════════
+  #  STAGE 5: DELIVERY
+  # ═══════════════════════════════════════════════════════════════════
+
+  ticket-creator:
+    after: [test-plan-generator]
+    agent:
+      system: |
+        You are a ticket creation agent for Syroco.
+        Linear team: Syroco (SYR, id: ed1b06c7-1c99-44ac-b41d-a0a30de0ddf7).
+        From the PRD, create: Project → Epic → Stories (per phase) → Tasks (per AC).
+        Group ACs by implementation phase. Set AC checklists on each issue.
+        Create dependency links between blocking issues.
+        Present decomposition plan to human BEFORE creating issues.
+        After creation, add comment on Notion Opportunity with Linear issue URLs.
+        Post summary to Slack #engineering-updates.
+      tools: [linear_create_project, linear_create_issue, linear_create_relation, notion_add_comment, slack_post_message]
+    requires: [prd_document, acceptance_criteria, test_plan]
+    publishes: [linear_issues]
+    approval: true
+    context:
+      tokenBudget: 16000
+      resolution: keyword                      # all sources known, no discovery
+      sources:
+        - uri: "step://acceptance_criteria"
+          depth: full                          # primary decomposition input
+          knowledgeType: ground_truth
+        - uri: "step://prd_document"
+          depth: summary                       # implementation phases for grouping
+          knowledgeType: ground_truth
+        - uri: "step://test_plan"
+          depth: headlines                     # test coverage awareness
+          knowledgeType: framework
+        - uri: "cache://linear/projects.json"
+          depth: full                          # avoid duplicate projects, get IDs
+          knowledgeType: ground_truth
+
+  dev-progress-monitor:
+    after: [ticket-creator]
+    agent:
+      model: claude-haiku-4-20250514
+      system: |
+        You are a development progress monitor for Syroco.
+        Linear team SYR (ed1b06c7-1c99-44ac-b41d-a0a30de0ddf7).
+        Fetch issues with state type in [started, unstarted].
+        Detect blockers: In Progress issues with no update in 3+ days.
+        Calculate project progress: completed/total per project.
+        Fetch GitHub PRs merged in last 24h across: efficientship-live, fleet, efficientship-backend.
+        Cross-reference PR titles with Linear issue IDs (SYR-XXX pattern).
+        Post daily brief to Slack #engineering-updates.
+      tools: [linear_query_issues, github_list_prs, slack_post_message]
+    requires: [linear_issues]
+    publishes: [progress_report]
+    context:
+      tokenBudget: 8000
+      resolution: keyword                      # data retrieval, no reasoning discovery
+      sources:
+        - uri: "step://linear_issues"
+          depth: headlines                     # issue IDs + project names for tracking
+          knowledgeType: ground_truth
+        - uri: "cache://dev-progress-monitor/yesterday_state.json"
+          depth: full                          # previous snapshot for delta detection
+          knowledgeType: evidence
+
+
+  # ═══════════════════════════════════════════════════════════════════
+  #  STAGE 6: POST-SHIP
+  # ═══════════════════════════════════════════════════════════════════
+
+  release-monitor:
+    agent:
+      model: claude-haiku-4-20250514
+      system: |
+        You are a release monitoring agent for Syroco.
+        Check GitHub releases for: syrocolab/efficientship-live, syrocolab/fleet,
+        syrocolab/efficientship-backend. Compare with cached versions.
+        Fetch commits since last release with file-level diffs.
+        Cluster changes by domain. Assign depth: Full (new features),
+        Detail (fixes), Summary (infra), Mention (chore).
+        Update product docs with depth-aware edits. Update version cache.
+      tools: [github_get_releases, github_get_commits, file_read, file_write]
+    publishes: [release_detected, version_cache]
+    context:
+      tokenBudget: 12000
+      resolution: graph                        # follow file changes → module → feature cluster
+      knowledgePriority: [ground_truth, framework]
+      sources:
+        - uri: "cache://github/syroco_repos.json"
+          depth: full                          # previous versions + changelog for comparison
+          knowledgeType: ground_truth
+        - uri: "repo://syrocolab/efficientship-backend"
+          depth: summary                       # module structure awareness
+          knowledgeType: ground_truth
+        - uri: "repo://syrocolab/efficientship-live"
+          depth: headlines                     # page/component structure
+          knowledgeType: ground_truth
+        - uri: "repo://syrocolab/fleet"
+          depth: headlines
+          knowledgeType: ground_truth
+      traversal:
+        followImports: true                    # changed file → what depends on it
+        followDocs: true                       # changed code → related docs to update
+        maxHops: 2
+
+  release-note-generator:
+    after: [release-monitor]
+    agent:
+      system: |
+        You are a release note writer for Syroco.
+        From GitHub PRs merged since last release + linked PRDs:
+        1. Summarize changes in user-friendly language (no jargon)
+        2. Group: New Features, Improvements, Bug Fixes
+        3. Generate HTML email for clients (save as Gmail draft)
+        4. Generate Slack message for #engineering-updates
+        5. Check if product docs need updates (suggest, don't auto-edit)
+        Frame as user benefits: "Hurricane DTO wind radii" → "Improved hurricane tracking".
+      tools: [github_list_prs, file_read, gmail_create_draft, slack_post_message]
+    requires: [release_detected]
+    publishes: [release_notes]
+    approval: true
+    context:
+      tokenBudget: 20000
+      resolution: semantic                     # bridge PR titles to user-facing descriptions
+      adaptiveRetrieval: true                  # re-fetch PRD context if framing is uncertain
+      knowledgePriority: [ground_truth, evidence, artifact]
+      sources:
+        - uri: "step://release_detected"
+          depth: full                          # what changed: clusters, files, versions
+          knowledgeType: evidence
+        - uri: "file://documents/03 - Solutions/"
+          depth: summary                       # PRDs for feature context (problem → benefit)
+          knowledgeType: ground_truth
+          maxTokens: 6000
+        - uri: "file://documents/00 - Knowledge/Products/"
+          depth: summary                       # current feature descriptions for consistency
+          knowledgeType: ground_truth
+          maxTokens: 4000
+        - uri: "cache://release-note-generator/release_notes_history.json"
+          depth: headlines                     # previous notes for tone/format consistency
+          knowledgeType: artifact
+          maxTokens: 2000
+
+  doc-auto-update:
+    after: [release-monitor]
+    agent:
+      model: claude-haiku-4-20250514
+      system: |
+        You are a documentation update agent for Syroco.
+        Read the release cluster analysis from release-monitor.
+        For Full-depth clusters: add feature descriptions, new module docs.
+        For Detail-depth: add changelog entries, update "Current Initiatives".
+        For Summary-depth: only update version numbers and dates.
+        Target files: LIVE.md, FLEET.md, REPORTS.md, OVERVIEW.md.
+        Apply surgical edits, don't rewrite entire files.
+      tools: [file_read, file_write]
+    requires: [release_detected, version_cache]
+    publishes: [docs_updated]
+    context:
+      tokenBudget: 16000
+      resolution: keyword
+      sources:
+        - uri: "step://release_detected"
+          depth: detail                        # change clusters with depth assignments
+          knowledgeType: evidence
+        - uri: "step://version_cache"
+          depth: full                          # new version numbers for all repos
+          knowledgeType: ground_truth
+        - uri: "file://documents/00 - Knowledge/Products/LIVE.md"
+          depth: full                          # must read current content to make surgical edits
+          knowledgeType: ground_truth
+        - uri: "file://documents/00 - Knowledge/Products/FLEET.md"
+          depth: full
+          knowledgeType: ground_truth
+        - uri: "file://documents/00 - Knowledge/Products/REPORTS.md"
+          depth: full
+          knowledgeType: ground_truth
+
+  success-metrics-tracker:
+    agent:
+      model: claude-haiku-4-20250514
+      system: |
+        PARTIALLY STUBBED: Mixpanel not connected.
+        Scan shipped PRDs for Success Metrics tables.
+        For Metabase metrics: SCR (44), Fuel Savings (51), Time Savings (53),
+        Route Matching (60), NR 24h (39) at http://192.168.10.23:3000.
+        Compare current with PRD targets. Post health report to Slack.
+      tools: [file_read, metabase_query, slack_post_message]
+    publishes: [metrics_report]
+    context:
+      tokenBudget: 10000
+      resolution: keyword
+      knowledgePriority: [ground_truth, evidence]
+      sources:
+        - uri: "file://documents/03 - Solutions/"
+          depth: summary                       # find Success Metrics tables in PRDs
+          knowledgeType: ground_truth
+          maxTokens: 4000
+        - uri: "notion://2fb15f7a-f269-81b4"   # Deliveries DB (what shipped)
+          depth: headlines                     # just titles + status = Released
+          knowledgeType: ground_truth
+          maxTokens: 2000
+
+  dashboard-data-sync:
+    agent:
+      system: |
+        You are the dashboard synchronization agent for Syroco.
+        Read from 5 Notion databases. Generate roadmap-data.json matching the
+        HTML dashboard structure: { hero, objectives, initiatives, deals, kpis }.
+        Push to syrocolab/syroco-product-ops repo via GitHub API.
+        If a DB is inaccessible, use cached data and note "stale" in commit message.
+      tools: [notion_query, github_push_file]
+    publishes: [dashboard_synced]
+    context:
+      tokenBudget: 20000
+      resolution: keyword                      # all sources are explicit DB IDs
+      sources:
+        - uri: "notion://2fb15f7a-f269-81c4"   # Objectives DB
+          depth: detail                        # titles + KR links
+          knowledgeType: framework
+        - uri: "notion://2fb15f7a-f269-81ad"   # Key Results DB
+          depth: detail                        # KR titles, periods, labels
+          knowledgeType: framework
+        - uri: "notion://2fb15f7a-f269-8136"   # Initiatives DB (may be NOT_SHARED)
+          depth: detail                        # phase, squad, product, timeframe
+          knowledgeType: framework
+        - uri: "notion://2fb15f7a-f269-81ef"   # Signals DB (counts only)
+          depth: mention                       # just need count per category
+          knowledgeType: evidence
+          maxTokens: 1000
+        - uri: "notion://2fb15f7a-f269-81b4"   # Deliveries DB
+          depth: summary                       # status, progress, release dates
+          knowledgeType: ground_truth
+        - uri: "cache://roadmap-data-sync/roadmap-data.json"
+          depth: headlines                     # previous JSON for schema conformance
+          knowledgeType: artifact
+          maxTokens: 1000

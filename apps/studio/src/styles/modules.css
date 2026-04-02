@@ -1,0 +1,163 @@
+/* Glass surface */
+.glass-surface {
+  background: rgba(28, 28, 32, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(42, 42, 48, 0.6);
+}
+[data-theme="light"] .glass-surface {
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(200, 200, 210, 0.6);
+}
+
+/* Run animation pulse */
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+/* Run button pulsing ring */
+@keyframes run-pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(254,80,0,0.6), 0 0 8px rgba(254,80,0,0.3); }
+  50% { box-shadow: 0 0 0 6px rgba(254,80,0,0), 0 0 16px rgba(254,80,0,0.4); }
+  100% { box-shadow: 0 0 0 0 rgba(254,80,0,0), 0 0 8px rgba(254,80,0,0.3); }
+}
+
+/* Typewriter cursor blink */
+@keyframes cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* Response reveal */
+@keyframes fade-in-up {
+  0% { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* File picker modal entrance */
+@keyframes modal-in {
+  0% { opacity: 0; transform: translateY(4px) scale(0.98); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Response modal overlay */
+.response-modal-overlay {
+  animation: modal-in 0.2s ease-out;
+}
+
+/* Tile styles */
+.tile {
+  transition: transform 0.12s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.tile:hover {
+  transform: translateY(-1px);
+}
+.tile:active {
+  transform: translateY(0);
+}
+
+/* Jack port glow */
+@keyframes jack-glow {
+  0%, 100% { box-shadow: 0 0 4px currentColor; }
+  50% { box-shadow: 0 0 8px currentColor, 0 0 12px currentColor; }
+}
+
+/* Cable sway */
+@keyframes cable-sway {
+  0%, 100% { filter: drop-shadow(0 0 2px currentColor); }
+  50% { filter: drop-shadow(0 0 4px currentColor); }
+}
+
+/* Cable dash animation for selected/hovered edges */
+@keyframes cable-dash {
+  0% { stroke-dashoffset: 20; }
+  100% { stroke-dashoffset: 0; }
+}
+
+/* Ghost tile pulse for feedback items */
+@keyframes ghost-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.6; }
+  50% { transform: scale(1.02); opacity: 0.75; }
+}
+
+@keyframes skeleton-loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes status-pulse {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+
+.ghost-tile {
+  border-style: dashed !important;
+  opacity: 0.6;
+  animation: ghost-pulse 2s ease-in-out infinite;
+}
+
+/* Gradient mesh background - subtle */
+.gradient-mesh-bg {
+  position: relative;
+}
+.gradient-mesh-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 600px 400px at 15% 50%, rgba(254,80,0,0.012) 0%, transparent 70%),
+    radial-gradient(ellipse 500px 500px at 85% 30%, rgba(52,152,219,0.008) 0%, transparent 70%);
+  z-index: 0;
+}
+
+/* Hover utility classes */
+.hover-accent-border {
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.hover-accent-border:hover {
+  border-color: #FE5000 !important;
+  color: #FE5000 !important;
+}
+
+.hover-accent-text {
+  transition: color 0.15s ease;
+}
+.hover-accent-text:hover {
+  color: #FE5000 !important;
+}
+
+.hover-row {
+  transition: background-color 0.15s ease;
+}
+.hover-row:hover {
+  background-color: rgba(37, 37, 42, 0.5);
+}
+[data-theme="light"] .hover-row:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+/* Respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Tools grid responsive layout */
+.tools-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 1024px) {
+  .tools-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* B14 — Zoom controls: see globals.css for full theme-aware overrides */

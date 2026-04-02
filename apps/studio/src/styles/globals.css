@@ -1,0 +1,216 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #111114;
+  --color-surface: #1c1c20;
+  --color-surface-elevated: #25252a;
+  --color-border: #2a2a30;
+  --color-accent: #FE5000;
+  --color-accent-dim: #CC4000;
+  --color-text-primary: #f0f0f0;
+  --color-text-secondary: #888;
+  --color-text-muted: #555;
+  --color-led-green: #00ff88;
+  --color-led-red: #ff3344;
+  --color-led-amber: #ffaa00;
+  --color-knowledge: #3498db;
+  --color-discovery: #2ecc71;
+  --color-intel: #e67e22;
+  --color-agents: #9b59b6;
+  --font-mono: 'Geist Mono', monospace;
+  --font-sans: 'Geist Sans', sans-serif;
+}
+
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+}
+
+/* A3 — Focus indicators */
+:focus-visible {
+  outline: 2px solid var(--color-accent, #6366F1);
+  outline-offset: 2px;
+}
+
+/* Accessibility: aria-live region for canvas announcements */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--color-bg);
+  font-family: var(--font-sans);
+  color: var(--color-text-primary);
+}
+
+/* Scrollbar — base sizing (applies to both themes) */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+
+/* Scrollbar — dark theme (default) */
+.dark ::-webkit-scrollbar-track,
+[data-theme="dark"] ::-webkit-scrollbar-track { background: #111114; }
+.dark ::-webkit-scrollbar-thumb,
+[data-theme="dark"] ::-webkit-scrollbar-thumb { background: #2a2a30; border-radius: 3px; }
+.dark ::-webkit-scrollbar-thumb:hover,
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: #3a3a40; }
+
+/* Scrollbar — light theme */
+[data-theme="light"] ::-webkit-scrollbar-track { background: #f0f1f3; }
+[data-theme="light"] ::-webkit-scrollbar-thumb { background: #ccccd4; border-radius: 3px; }
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: #aaaaB0; }
+
+/* Remove default ReactFlow node background/border/shadow */
+.react-flow__node {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+/* ── React Flow Controls (zoom +/- and fit) ── */
+.react-flow__controls {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
+  border-radius: 8px !important;
+  overflow: hidden !important;
+}
+.react-flow__controls-button {
+  width: 32px !important;
+  height: 32px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: #1c1c20 !important;
+  border: none !important;
+  border-bottom: 1px solid #2a2a30 !important;
+  color: #f0f0f0 !important;
+  fill: #f0f0f0 !important;
+}
+.react-flow__controls-button:hover {
+  background: #25252a !important;
+}
+.react-flow__controls-button:last-child {
+  border-bottom: none !important;
+}
+.react-flow__controls-button svg {
+  max-width: 14px !important;
+  max-height: 14px !important;
+  fill: currentColor !important;
+}
+
+/* ── React Flow Minimap ── */
+.react-flow__minimap {
+  background: #1c1c20 !important;
+  border: 1px solid #2a2a30 !important;
+  border-radius: 8px !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2) !important;
+}
+.react-flow__minimap-mask {
+  fill: rgba(17,17,20,0.85) !important;
+}
+.react-flow__minimap-node {
+  fill: #3a3a42 !important;
+  stroke: #555 !important;
+  stroke-width: 1 !important;
+}
+
+/* ── Light mode overrides ── */
+[data-theme="light"] .react-flow__controls-button {
+  background: #ffffff !important;
+  border-bottom-color: #dddde2 !important;
+  color: #1a1a20 !important;
+  fill: #1a1a20 !important;
+}
+[data-theme="light"] .react-flow__controls-button:hover {
+  background: #f0f0f5 !important;
+}
+[data-theme="light"] .react-flow__minimap {
+  background: #ffffff !important;
+  border-color: #ccccd4 !important;
+}
+[data-theme="light"] .react-flow__minimap-mask {
+  fill: rgba(240,241,243,0.85) !important;
+}
+[data-theme="light"] .react-flow__minimap-node {
+  fill: #ccccd4 !important;
+  stroke: #999 !important;
+}
+
+/* ── Placeholder text contrast ── */
+::placeholder {
+  color: #666 !important;
+  opacity: 1 !important;
+}
+[data-theme="light"] ::placeholder {
+  color: #888 !important;
+}
+
+/* ── Edge labels ── */
+.react-flow__edge-textwrapper .react-flow__edge-text {
+  fill: #888 !important;
+}
+[data-theme="light"] .react-flow__edge-textwrapper .react-flow__edge-text {
+  fill: #555 !important;
+}
+
+/* ── Import spinner animation ── */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Tab bar horizontal scrolling without scrollbar */
+.tab-scrollbar-hidden {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* Internet Explorer and Edge */
+}
+.tab-scrollbar-hidden::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
+/* Accessibility: respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ── Mobile responsiveness (< 768px) ── */
+@media (max-width: 767px) {
+  /* Wizard content: full-width, remove side padding */
+  .wizard-content-inner {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+    max-width: 100% !important;
+  }
+
+  /* Hide prev/next edge navigation arrows on mobile (use tabs instead) */
+  .wizard-edge-nav {
+    display: none !important;
+  }
+
+  /* FAB moves closer to edge on mobile */
+  .floating-run-btn {
+    right: 12px !important;
+    bottom: 72px !important;
+  }
+}

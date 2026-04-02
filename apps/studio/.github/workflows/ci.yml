@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+env:
+  HUSKY: '0'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint || echo "::warning::Lint has warnings/errors — see above"
+        continue-on-error: true
+
+      - name: Security audit
+        run: npm audit --audit-level=high || true
+
+      - name: TypeScript check
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: npm run build
+      
+      - name: Unit tests with coverage
+        run: npx vitest run --coverage
+      
+      - name: Server build
+        run: npm run build:server
+
+  e2e-smoke:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Install Playwright
+        run: npx playwright install --with-deps chromium firefox
+
+      - name: Build
+        run: npm run build
+
+      - name: E2E tests
+        run: npx playwright test --reporter=list
+        env:
+          CI: true
