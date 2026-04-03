@@ -12,16 +12,11 @@ import type { HookDefinition } from '@modular/harness';
 // These are the single source of truth, shared with Studio.
 export type { Fact, FactStatus, TraceEvent, TraceEventType } from '@modular/core';
 export { DepthLevel, DEPTH_TOKEN_RATIOS } from '@modular/core';
-export type { DepthLevel } from '@modular/core';
 export { ContextSpec } from '@modular/core';
-export type { ContextSpec } from '@modular/core';
 export { StructuredCondition, Condition } from '@modular/core';
-export type { Condition } from '@modular/core';
 export { InlineAgent, AgentRef } from '@modular/core';
-export type { InlineAgent, AgentRef } from '@modular/core';
 export type { ResolvedAgent, AgentRunEvent } from '@modular/core';
 export { Budget, estimateCost } from '@modular/core';
-export type { Budget } from '@modular/core';
 
 // Re-export provider interface
 export type { StudioProvider } from '@modular/providers';
