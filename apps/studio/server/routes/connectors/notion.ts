@@ -1,9 +1,15 @@
 /**
- * Notion Connector (v2) — delegates to the main connectors.ts Notion endpoints.
+ * @deprecated — Notion v2 connector (scheduled for removal).
  *
- * The full Notion implementation (test, fetch, search, OAuth) lives in
- * server/routes/connectors.ts. This v2 route file re-exports the same
- * functionality so the frontend can access it via /api/connectors/v2/notion/*.
+ * This file duplicates logic from connectors.ts and bypasses Pipedream.
+ * Once Notion is migrated to Pipedream OAuth (like other connectors),
+ * this file and the corresponding entry in connectorRegistry.ts should
+ * be removed. See: https://github.com/VictorGjn/modular/pull/1
+ *
+ * TODO:
+ * - Migrate Notion auth to Pipedream
+ * - Remove this file + connectors.ts Notion-specific routes
+ * - Update ConnectorPicker to use Pipedream flow for Notion
  */
 
 import { Router } from 'express';
@@ -47,7 +53,7 @@ router.post('/test', async (req, res) => {
 // ── Search ──
 
 router.post('/search', async (req, res) => {
-  const apiKey = getApiKey('notion', req.body as Record<string, unknown>, sessionKeys);
+  const apiKey = getApiKey(req, sessionKeys, 'notion');
   if (!apiKey) { res.status(401).json({ status: 'error', error: 'No API key. Test connection first.' }); return; }
 
   const { query } = req.body as { query?: string };
@@ -79,7 +85,7 @@ router.post('/search', async (req, res) => {
 // ── Fetch page content ──
 
 router.post('/fetch', async (req, res) => {
-  const apiKey = getApiKey('notion', req.body as Record<string, unknown>, sessionKeys);
+  const apiKey = getApiKey(req, sessionKeys, 'notion');
   if (!apiKey) { res.status(401).json({ status: 'error', error: 'No API key. Test connection first.' }); return; }
 
   const { pageIds, databaseIds } = req.body as { pageIds?: string[]; databaseIds?: string[] };

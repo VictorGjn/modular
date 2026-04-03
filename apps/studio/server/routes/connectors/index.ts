@@ -16,7 +16,7 @@ import confluenceRoutes from './confluence.js';
 import googleSheetsRoutes from './google-sheets.js';
 import gmailRoutes from './gmail.js';
 import googleDriveRoutes from './google-drive.js';
-// Extra
+// Extra (notion is @deprecated — see notion.ts header)
 import notionRoutes from './notion.js';
 import planeRoutes from './plane.js';
 
@@ -35,7 +35,7 @@ router.use('/confluence', confluenceRoutes);
 router.use('/google-sheets', googleSheetsRoutes);
 router.use('/gmail', gmailRoutes);
 router.use('/google-drive', googleDriveRoutes);
-// Extra
+// Extra (notion is @deprecated — see notion.ts header)
 router.use('/notion', notionRoutes);
 router.use('/plane', planeRoutes);
 
