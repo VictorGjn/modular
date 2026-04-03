@@ -1,7 +1,7 @@
 
-import type { SwarmBackend, AgentRunConfig, AgentResult, AgentHandle } from '@modular/core';
-import type { AgentMessage } from './mailbox.js';
-import type { StudioProvider } from '@modular/core';
+import type { SwarmBackend, AgentRunConfig, AgentResult, AgentHandle } from './types.js';
+import type { AgentMessage } from '../mailbox.js';
+import type { StudioProvider } from '@modular/providers';
 export class InProcessBackend implements SwarmBackend {
   private handles=new Map<string,AgentHandle>(); private promises=new Map<string,Promise<AgentResult>>(); private ctrls=new Map<string,AbortController>();
   constructor(private provider:StudioProvider){}

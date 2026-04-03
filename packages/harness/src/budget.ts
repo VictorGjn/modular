@@ -5,7 +5,7 @@
  */
 
 import type { Budget } from '@modular/core';
-import type { estimateCost } from '@modular/core';
+import { estimateCost } from '@modular/core';
 
 export type BudgetStopReason = 'ok' | 'max_turns_reached' | 'max_budget_reached' | 'max_cost_reached';
 

@@ -63,6 +63,12 @@ bun run dev
 - [x] Extract @modular/harness (FactBus, Mailbox, Hooks, BudgetGuard, EventStream, Presets)
 - [x] Import crew into apps/crew
 - [x] Import studio into apps/studio
-- [ ] Rewire crew imports to use workspace packages (local copies still used despite `workspace:*` deps)
-- [ ] Set up @modular/ui with studio's design system (stub exists, no consumers yet)
-- [ ] Deduplicate crew/src/{facts,hooks,trace} vs packages/harness/src (near-identical copies)
+- [x] Rewire crew imports to workspace packages (shims delegate to @modular/harness, worktree, core, providers)
+- [x] Set up @modular/ui with design tokens (`packages/ui/src/tokens.ts`)
+
+### Remaining (follow-up)
+
+- [ ] Migrate studio `src/components/ds/` (30 components) into @modular/ui
+- [ ] Wire studio to consume @modular/ui instead of local ds/
+- [ ] Delete crew shim files once all internal imports use @modular/* directly
+- [x] Consolidate crew `mock.ts` — now re-exports from @modular/providers (shared MockProvider upgraded)
