@@ -71,4 +71,4 @@ bun run dev
 - [ ] Migrate studio `src/components/ds/` (30 components) into @modular/ui
 - [ ] Wire studio to consume @modular/ui instead of local ds/
 - [ ] Delete crew shim files once all internal imports use @modular/* directly
-- [ ] Consolidate crew `mock.ts` (8.4KB, crew-specific) vs @modular/providers MockProvider (3.4KB)
+- [x] Consolidate crew `mock.ts` — now re-exports from @modular/providers (shared MockProvider upgraded)
