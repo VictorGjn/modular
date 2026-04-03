@@ -1,7 +1,7 @@
 // TODO: Extract TEMPLATE_PROMPTS to skills (output-templates skill).
 // These LLM system prompts should live as loadable skill files, not hardcoded.
 // Notion connector removed — use Pipedream for OAuth connectors.
-// See: https://github.com/VictorGjn/modular/pull/XXX
+// See: https://github.com/VictorGjn/modular/pull/1
 import { useProviderStore } from '../store/providerStore';
 import { useConsoleStore } from '../store/consoleStore';
 import type { OutputTarget, OutputTemplateConfig } from '../store/outputTemplates';
