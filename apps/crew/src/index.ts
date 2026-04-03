@@ -34,4 +34,4 @@ export { parseTeamFile, validateTeam, topoSort } from './compiler/team-parser.js
 
 // ── Studio Providers ──────────────────────────────────────────────────────
 export { PatchbayProvider } from './studio/patchbay.js';
-export { MockProvider } from './studio/mock.js';
+export { MockProvider } from '@modular/providers';
