@@ -60,8 +60,9 @@ bun run dev
 - [x] Extract @modular/providers (StudioProvider, MockProvider)
 - [x] Extract @modular/worktree (unified from crew + studio)
 - [x] Extract @modular/context (SystemPromptBuilder, ReactiveCompaction, etc.)
-- [ ] Extract @modular/harness (FactBus, Mailbox, Hooks — stubs created)
-- [ ] Import crew into apps/crew
-- [ ] Import studio into apps/studio
-- [ ] Rewire imports to use workspace packages
-- [ ] Set up @modular/ui with studio's design system
+- [x] Extract @modular/harness (FactBus, Mailbox, Hooks, BudgetGuard, EventStream, Presets)
+- [x] Import crew into apps/crew
+- [x] Import studio into apps/studio
+- [ ] Rewire crew imports to use workspace packages (local copies still used despite `workspace:*` deps)
+- [ ] Set up @modular/ui with studio's design system (stub exists, no consumers yet)
+- [ ] Deduplicate crew/src/{facts,hooks,trace} vs packages/harness/src (near-identical copies)
