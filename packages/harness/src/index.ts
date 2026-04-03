@@ -11,3 +11,4 @@ export * from './presets.js';
 export * from './summarizer.js';
 export * from './background.js';
 export { type SwarmBackend, type AgentRunConfig, type AgentResult, type AgentHandle } from './backends/types.js';
+export { InProcessBackend } from './backends/in-process.js';
