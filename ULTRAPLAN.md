@@ -1,7 +1,7 @@
-# ULTRAPLAN — What's Next for Modular
+# ULTRAPLAN v2 — What's Next for Modular
 
-**Date:** 2026-04-04
-**Status:** Living document — updated as phases complete
+**Date:** 2026-04-04  
+**Version:** 2.0 (post-ultrareview from 6 perspectives: Backend, Frontend, UI/UX, Design Systems, CPO, VC)  
 **Scope:** Monorepo-wide (packages/\*, apps/crew, apps/studio)
 
 ---
@@ -10,112 +10,160 @@
 
 Modular is a **context engineering platform** with two apps:
 
-- **Studio** (apps/studio) — Visual IDE for designing agents with context-aware knowledge, tools, memory, and qualification. 60K lines of TypeScript/React. v1.0.6 shipped with 916 unit tests + 62 E2E.
-- **Crew** (apps/crew) — CLI + DAG engine for multi-agent teams with depth-routed context, fact bus, coordinator mode, and budget guards. ~5K lines of TypeScript.
+- **Crew** (apps/crew) — CLI + DAG engine for multi-agent teams with depth-routed context. ~5K LoC. **Primary adoption wedge.**
+- **Studio** (apps/studio) — Visual IDE for agent design. 60K LoC, v1.0.6, 916 unit + 62 E2E tests. **Enterprise upgrade path.**
 
-Six shared packages extracted into the monorepo:
+Six shared packages: `@modular/core` (types), `@modular/providers` (LLM abstraction), `@modular/worktree` (git isolation), `@modular/context` (compaction/collapse), `@modular/harness` (FactBus/Mailbox/Hooks/Budget), `@modular/ui` (stub).
 
-| Package | Lines | Status |
-|---------|-------|--------|
-| `@modular/core` | ~200 | Shared types, Zod schemas |
-| `@modular/providers` | ~250 | StudioProvider interface + MockProvider |
-| `@modular/worktree` | ~200 | Git worktree isolation |
-| `@modular/context` | ~350 | SystemPromptBuilder, ReactiveCompaction, ContextCollapse, ToolUseSummary |
-| `@modular/harness` | ~750 | FactBus, Mailbox, Hooks, BudgetGuard, EventStream, Presets |
-| `@modular/ui` | ~50 | Stub — design tokens only |
+### Known Gaps
 
-### Known Gaps (from README migration checklist)
-
-1. **Crew still uses local copies** — `crew/src/{facts,hooks,trace,orchestrator}` duplicates `packages/harness/src`. Imports say `workspace:*` but actual code paths use local files.
-2. **@modular/ui has no consumers** — Studio's 44+ design system components (`ds/`) are not shared.
-3. **No CI for the monorepo** — Studio has its own CI, but the root `turbo build && turbo test` has no GitHub Actions workflow.
-4. **Type divergence** — `apps/crew/src/types.ts` (384 lines) re-declares schemas that should come from `@modular/core` (74 lines). The core package is anemic.
+1. **Crew duplicates harness** — `crew/src/{facts,hooks,trace}` are near-copies of `packages/harness/src`
+2. **Type divergence** — `Fact` has different fields in core vs crew; `FactStatus` has 2 vs 3 values
+3. **No monorepo CI** — cross-package changes have no automated verification
+4. **No lockfile** — non-reproducible builds
+5. **No users** — zero external adoption, no npm publish, no landing page
+6. **Token color mismatch** — `@modular/ui` uses `#6366f1`, Studio ds/ uses `#FE5000`
+7. **Ultraplan cost bug** — hardcoded `tt*.000003` ignores existing `MODEL_PRICING` table
 
 ---
 
-## The Plan: 5 Phases
+## v1 → v2 Changes (What the Reviews Changed)
 
-### Phase 1 — Structural Integrity (Foundation)
-
-_Finish the monorepo migration. Eliminate duplication. Make `turbo build && turbo test` green._
-
-| # | Task | Why | Files |
-|---|------|-----|-------|
-| 1.1 | **Consolidate types into @modular/core** | crew/src/types.ts has 384 lines of Zod schemas that belong in core. Core currently only has 74 lines. Move `TeamDefinition`, `FlowStep`, `Budget`, `StepState`, `RunState`, `StudioProvider`, `ModelPricing` into core. Crew re-exports. | `packages/core/src/`, `apps/crew/src/types.ts` |
-| 1.2 | **Deduplicate crew vs harness** | `crew/src/facts/fact-bus.ts` ≈ `packages/harness/src/fact-bus.ts`. Same for mailbox, hooks, events, presets, summarizer, background. Delete crew's local copies, rewire imports to `@modular/harness`. | `apps/crew/src/{facts,hooks,trace,background,presets}/`, `packages/harness/src/` |
-| 1.3 | **Move PatchbayProvider to @modular/providers** | Currently in `crew/src/studio/patchbay.ts`. It's the real HTTP provider — belongs in the shared package alongside MockProvider. | `apps/crew/src/studio/patchbay.ts` → `packages/providers/src/patchbay.ts` |
-| 1.4 | **Add monorepo CI workflow** | `.github/workflows/ci.yml`: `bun install → turbo build → turbo test → turbo type-check → turbo lint`. Matrix: Node 20 + 22. | `.github/workflows/ci.yml` |
-| 1.5 | **Add `bun.lockb` or `bun.lock`** | No lockfile in repo. Builds are non-reproducible. | Root |
-
-**Exit criterion:** `turbo build && turbo test && turbo type-check` passes. Zero local copies of shared code in crew.
-
----
-
-### Phase 2 — Crew Runtime Completion (Make It Real)
-
-_Crew has the architecture but gaps in execution. Close them._
-
-| # | Task | Why | Files |
-|---|------|-----|-------|
-| 2.1 | **Real provider integration** | Crew only has Mock + Patchbay providers. Add `AnthropicProvider` (Claude API direct) and `OpenAIProvider` using their respective SDKs. No more dependency on Studio server for basic runs. | `packages/providers/src/{anthropic,openai}.ts` |
-| 2.2 | **CLI polish** | `bin/crew.ts` needs: proper arg parsing (yargs/commander), colored output, `--verbose`/`--quiet` flags, `crew init` template scaffolding, `crew doctor` health checks. | `apps/crew/bin/crew.ts` |
-| 2.3 | **SQLite run store** | `crew/src/store/run-store.ts` exists but needs: proper migrations, query by status/date, fact retrieval by run, export to JSON. | `apps/crew/src/store/` |
-| 2.4 | **Ultraplan → Crew integration** | Ultraplan generates plans but they don't feed back into execution. Wire `crew plan` → `crew run --plan <id>` so plans become executable. | `apps/crew/src/orchestrator/ultraplan.ts`, `bin/crew.ts` |
-| 2.5 | **Worktree integration** | `@modular/worktree` exists but crew doesn't use it. When `repo:` is specified in YAML, agents should get isolated git worktrees. | `apps/crew/src/compiler/inngest-compiler.ts`, `packages/worktree/` |
-| 2.6 | **Resume/retry robustness** | `resume.ts` exists but E2E test coverage is thin. Add: resume after budget exceeded, resume after crash, retry with exponential backoff. | `apps/crew/src/orchestrator/resume.ts`, `apps/crew/tests/` |
-
-**Exit criterion:** `crew run team.yaml --task "..." ` works end-to-end with Claude API (no Studio server required). Plans are executable. Runs persist and can resume.
+| v1 | v2 | Why |
+|----|-----|-----|
+| Phase 1-4 engineering, Phase 5 distribution | New Phase 0: Ship + distribute first | CPO + VC: "No users = building in a vacuum" |
+| CI at priority #5 | CI at priority #2 | Backend + Frontend: "Cross-package changes without CI is reckless" |
+| Design system extraction in Phase 4 (after features) | Token foundation before Phase 3 features | Frontend + Design Systems: "Building on local imports then rewiring is guaranteed pain" |
+| No accessibility mention | Accessibility as cross-cutting concern | Design + UI/UX: "Enterprise blocker, WCAG showstopper" |
+| 44+ component extraction | ~20 extractable primitives (realistic scope) | Design Systems: "4 are store-coupled, 7 are app-specific" |
+| Layer Progression as gamification | Reframed as "Configuration Coverage" | UI/UX: "'Unlock Layer 3' is patronizing to senior engineers" |
+| Context Graph: 2 days | Context Graph: Tier 1 demo (2d) + Tier 2 production (5d) | UI/UX: "2 days gets you a demo, not a feature" |
+| No error taxonomy | Added typed error hierarchy | Backend: "Without this, retry logic is guesswork" |
+| No concurrency model | FactBus mutex for coordinator mode | Backend: "Two workers can publish conflicting facts simultaneously" |
+| Studio + Crew as equals | Crew-first strategy | CPO + VC: "Pick one wedge. Crew is simpler, npm-installable, proves the thesis" |
 
 ---
 
-### Phase 3 — Studio Completion (Ship v1.1)
+## The Plan: 7 Phases
 
-_Close the open items from PLAN-REMAINING.md and ROADMAP-V3.md Phase A/B._
+### Phase 0 — Ship & Distribute (WEEK 1-2)
 
-| # | Task | Why | Source |
-|---|------|-----|--------|
-| 3.1 | **Context Graph UI** | Force-directed graph visualization in Knowledge tab. Backend done, UI pending. Visual wow factor for demos. | ROADMAP-V3 A4 |
-| 3.2 | **Code-Aware Tree Indexer** | Current indexer only parses markdown headings. Need TypeScript/Python AST extraction for symbol-level retrieval. Biggest value-add for code-focused agents. | PLAN-REMAINING I1, ROADMAP-V3 B4 |
-| 3.3 | **Dual-Agent Qualification Loop** | Agent Testeur + Agent Correcteur in auto-fix loop. No competitor has this. Samuel Neveu pattern. | ROADMAP-V3 B1 |
-| 3.4 | **Context Ablation Testing** | A/B test knowledge sources: "removing source X drops quality by 12%". Novel capability. | ROADMAP-V3 B2 |
-| 3.5 | **Layer Progression Indicator** | Boris Cherny's dependency graph as UX. Gamifies agent maturity: "You're at Layer 2 — unlock Layer 3 by adding tools." | ROADMAP-V3 B3 |
-| 3.6 | **Export to CLI formats** | Generate `.claude/CLAUDE.md`, `.cursorrules`, `crew team.yaml` directly from the wizard. Bridges design-time → runtime. | ROADMAP-V3 B5 |
-| 3.7 | **Blocking UX fixes** | Move FactInsights to ReviewTab (B1), depth slider labels (B2), per-source config UX (B3). | PLAN-REMAINING B1-B3 |
-
-**Exit criterion:** Studio v1.1 with context graph, code-aware indexing, and export-to-CLI. Qualification loop works end-to-end with real LLM.
-
----
-
-### Phase 4 — @modular/ui + Design System (Unify the Frontend)
-
-_Extract Studio's mature design system into the shared package. Prepare for crew's future UI._
+_Get Crew into developers' hands. Prove the thesis with real users._
 
 | # | Task | Why |
 |---|------|-----|
-| 4.1 | **Extract ds/ components to @modular/ui** | Studio has 44+ components in `src/components/ds/` (Button, Modal, Card, Input, Select, Tabs, Toast, Tooltip, etc.). Extract to `packages/ui/` with proper exports. |
-| 4.2 | **Design tokens as CSS variables** | `packages/ui/src/tokens.ts` is a stub. Populate with Studio's actual theme (colors, spacing, typography, shadows) as CSS custom properties. |
-| 4.3 | **Storybook setup** | Add Storybook to `packages/ui/` for visual component documentation. Wire into `turbo dev`. |
-| 4.4 | **Studio consumes @modular/ui** | Rewire Studio's imports from `../ds/Button` to `@modular/ui`. Verify no regressions. |
+| 0.1 | **`crew run --demo` zero-config experience** | Bundled team.yaml + mock mode + beautiful terminal output. Time-to-wow under 2 minutes. |
+| 0.2 | **npm publish `modular-crew`** | `npm i -g modular-crew && crew run --demo` must work. Changesets + publish pipeline. |
+| 0.3 | **Landing page** | One page: problem, 90-second demo video, `npm install` command. Deploy to Vercel. |
+| 0.4 | **Opt-in anonymous telemetry** | Commands run, team sizes, error rates. Know what breaks and what gets used. |
+| 0.5 | **10 design partners** | Outreach to dev tool builders. Weekly check-ins. Their feedback drives Phase 2+. |
 
-**Exit criterion:** `@modular/ui` is a publishable, documented component library. Studio uses it as a dependency.
+**Activation metric:** % of installers who complete a successful `crew run` within 24 hours.  
+**Exit criterion:** Crew published on npm, landing page live, 10 design partners onboarded.
 
 ---
 
-### Phase 5 — Enterprise & Distribution (ROADMAP-V3 Phase C/D)
+### Phase 1 — Structural Integrity (WEEK 2-3)
 
-_Make it installable, deployable, and sellable._
+_Finish the monorepo migration. Eliminate duplication. CI green._
 
-| # | Task | Why | Source |
-|---|------|-----|--------|
-| 5.1 | **Auth + multi-tenant** | "It's not a toy." Basic JWT auth, workspace isolation, API keys. | ROADMAP-V3 C1 |
-| 5.2 | **Usage analytics dashboard** | Track agents created, generations run, exports made, token spend. Backend exists, needs UI. | ROADMAP-V3 C2 |
-| 5.3 | **OpenAPI documentation** | Auto-generate from Studio's Express routes. Makes integration trivial. | ROADMAP-V3 C3 |
-| 5.4 | **npm publish pipeline** | `npm i -g modular-studio` and `npm i -g modular-crew`. Turborepo `publish` task with changesets. | ROADMAP-V3 C5 |
-| 5.5 | **Helm chart** | Docker already exists. Add Helm for K8s deployment. | ROADMAP-V3 C4 |
-| 5.6 | **Landing page + case study** | Marketing site. Syroco dogfooding story. "Context engineering > prompt engineering" positioning. | ROADMAP-V3 D1-D3 |
-| 5.7 | **Product Hunt launch** | Stars + awareness + inbound interest from target buyers. | ROADMAP-V3 D4 |
+| # | Task | Why |
+|---|------|-----|
+| 1.1 | **Monorepo CI workflow** | `bun install → turbo build → turbo test → turbo type-check`. Must land before any cross-package changes. |
+| 1.2 | **Add lockfile** | `bun.lock` for reproducible builds. |
+| 1.3 | **Reconcile types into @modular/core** | Decide: core's `Fact` (with `confidence`, `epistemicType`, 3 statuses) wins. Crew re-exports. Move `TeamDefinition`, `FlowStep`, `Budget`, `StepState`, `RunState`, `StudioProvider`, `ModelPricing` into core. |
+| 1.4 | **Deduplicate crew vs harness** | Delete `crew/src/{facts,hooks,trace,background,presets}/`, rewire to `@modular/harness`. |
+| 1.5 | **Move PatchbayProvider to @modular/providers** | From `crew/src/studio/patchbay.ts` to shared package. |
+| 1.6 | **Fix ultraplan cost estimation** | Replace `tt*.000003` with `estimateCost()` from `MODEL_PRICING`. One-line fix. |
+| 1.7 | **Add typed error hierarchy** | `packages/core/src/errors.ts`: `RetryableError`, `FatalError`, `BudgetExceededError`. Required before retry logic. |
+| 1.8 | **SQLite migration system** | Add `schema_version` table + `migrate()` to `run-store.ts`. Schema changes without this = data loss. |
 
-**Exit criterion:** `npm install -g modular-studio && modular-studio` works. Auth enabled. Helm deployable. Public landing page live.
+**Exit criterion:** `turbo build && turbo test && turbo type-check` green. Zero local copies of shared code in crew.
+
+---
+
+### Phase 2 — Crew Runtime (WEEK 3-5)
+
+_Make Crew work end-to-end with real LLM providers._
+
+| # | Task | Why |
+|---|------|-----|
+| 2.1 | **AnthropicProvider + OpenAIProvider** | Direct Claude/OpenAI API. No Studio server dependency. |
+| 2.2 | **CLI polish** | Arg parsing (yargs), colored output, `crew init`, `crew doctor`, `--verbose`/`--quiet`. |
+| 2.3 | **Ultraplan → execution** | `crew plan` → `crew run --plan <id>`. Plans become executable. |
+| 2.4 | **FactBus concurrency guard** | Mutex/queue for concurrent publish in coordinator mode. |
+| 2.5 | **Resume/retry with error taxonomy** | Use typed errors from 1.7. Retry on `RetryableError`, abort on `FatalError`. Exponential backoff. |
+| 2.6 | **Worktree integration** | Wire `@modular/worktree` into crew when `repo:` is specified. |
+| 2.7 | **Export from Studio → Crew** | Generate `crew team.yaml`, `.claude/CLAUDE.md`, `.cursorrules` from Studio wizard. Bridges the two products. |
+
+**Exit criterion:** `crew run team.yaml --task "..."` works with Claude API. Plans executable. Runs persist and resume.
+
+---
+
+### Phase 3 — Design Foundations (WEEK 3-4, parallel with Phase 2)
+
+_Fix the token system and extract primitives BEFORE building new Studio features._
+
+| # | Task | Why |
+|---|------|-----|
+| 3.1 | **Reconcile token colors** | `@modular/ui` stub (`#6366f1`) vs Studio theme.ts (`#FE5000`). Studio's 66 semantic tokens are the source of truth. |
+| 3.2 | **Build ThemeProvider context** | Replace `useTheme()` Zustand store coupling with React context in `@modular/ui`. Every ds/ component depends on this. |
+| 3.3 | **Extract ~20 clean primitives** | Badge, Chip, Divider, Spinner, StatusDot, SkeletonLoader, Progress, EmptyState, Card, Avatar, Tooltip, Section, Button, Input, TextArea, Select, Toggle, Tabs, Modal, IconButton. Add render tests per component. |
+| 3.4 | **Fix a11y basics during extraction** | `htmlFor`/`id` binding on Input labels, `:focus-visible` on Button (currently uses hover-only JS), ARIA patterns on interactive components. |
+| 3.5 | **Leave app-specific components in Studio** | Toast (store-coupled), ProviderOnboarding, FeatureFlagsSettings, GenerateBtn, FloatingRunButton, AutoImproveButton, RefineButton. |
+
+**Exit criterion:** `@modular/ui` has 20 primitives with ThemeProvider, render tests, and basic a11y. Studio imports from `@modular/ui`.
+
+---
+
+### Phase 4 — Studio v1.1 Features (WEEK 5-8)
+
+_Build differentiating features on the new shared foundation._
+
+| # | Task | Effort | Notes |
+|---|------|--------|-------|
+| 4.1 | **Code-Aware Tree Indexer** | 3-5 days | TS/Python AST extraction. Biggest competitive differentiator. |
+| 4.2 | **Context Graph UI — Tier 1 (demo)** | 2 days | Static layout with click-to-inspect. Consolidate graph libs (pick `@xyflow/react` OR `react-force-graph-2d`, not both). |
+| 4.3 | **Context Graph UI — Tier 2 (production)** | +5 days | Force-directed with filtering, accessible list-view fallback, 100+ node performance caps. |
+| 4.4 | **Dual-Agent Qualification Loop** | 3-5 days | Agent Testeur + Agent Correcteur. Novel, defensible. |
+| 4.5 | **Context Ablation Testing** | 3-4 days | A/B test knowledge sources with quality delta measurement. |
+| 4.6 | **Configuration Coverage indicator** | 2 days | Dependency-graph checklist (NOT gamification). "Your agent covers layers 0-2; tools unlock layer 3." |
+| 4.7 | **Blocking UX fixes** | 1-2 days | FactInsights → ReviewTab, depth slider labels, per-source config UX. |
+| 4.8 | **Dynamic-import heavy deps** | 1 day | `React.lazy()` for mermaid (2MB+), graph libs. Wrap in Suspense + ErrorBoundary. |
+
+**Exit criterion:** Studio v1.1 with code-aware indexing, context graph, qualification loop. Bundle <500KB initial load.
+
+---
+
+### Phase 5 — Observability & Robustness (WEEK 6-8, parallel with Phase 4)
+
+_Production-readiness for both products._
+
+| # | Task | Why |
+|---|------|-----|
+| 5.1 | **Structured logging** | OpenTelemetry-compatible trace export for crew runs. |
+| 5.2 | **Health endpoints** | `/health` and `/ready` for Studio server. `crew doctor` enhanced. |
+| 5.3 | **Zustand store audit** | Audit 28 stores for selector granularity. Add lint rule preventing `useStore()` without selectors. |
+| 5.4 | **Error boundary strategy** | Wrap graph/visualization features so crashes don't take down the IDE. |
+| 5.5 | **Storybook + visual regression** | For `@modular/ui`. Chromatic or Percy baseline. |
+| 5.6 | **Component state documentation** | Loading, empty, error, disabled states for all new Phase 4 components. |
+
+---
+
+### Phase 6 — Enterprise & Growth (MONTH 2-3)
+
+_Only after Crew has users and Studio has features._
+
+| # | Task | Why |
+|---|------|-----|
+| 6.1 | **Auth + multi-tenant** | JWT, workspace isolation, API keys. Required for enterprise pilots. |
+| 6.2 | **Usage analytics dashboard** | Backend exists, wire UI. Track agents, generations, exports, spend. |
+| 6.3 | **OpenAPI docs** | Auto-generate from Express routes. |
+| 6.4 | **npm publish Studio** | `npm i -g modular-studio && modular-studio`. |
+| 6.5 | **Helm chart** | K8s deployment (Docker already exists). |
+| 6.6 | **Product Hunt launch** | Stars + inbound. |
+| 6.7 | **Case study** | Syroco dogfooding story + design partner testimonials. |
+| 6.8 | **Revised exit thesis** | Target realistic acquirers: Anthropic (agent context for Claude Code), Sourcegraph (code intelligence), JetBrains (IDE). Not OSS projects with no M&A budget. |
 
 ---
 
@@ -123,46 +171,79 @@ _Make it installable, deployable, and sellable._
 
 | Concern | Action |
 |---------|--------|
-| **Testing** | Every new feature ships with unit tests. Crew target: 80%+ coverage. Studio: maintain 916+ unit, 62+ E2E. |
-| **Type safety** | All packages use TypeScript strict. No `any` escape hatches. Zod schemas are the source of truth. |
-| **Bundle size** | Studio already code-splits. Monitor via `turbo build` output. Target: <500KB gzipped for initial load. |
-| **Documentation** | Each package gets a focused README. Root README stays high-level. No separate docs site until Phase 5. |
-| **Backward compat** | YAML `version: 1` schema is frozen. New features use `version: 2` with migration. |
+| **Testing** | Every feature ships with tests. Crew: 80%+ coverage. Studio: maintain 916+ unit, 62+ E2E. |
+| **Type safety** | TypeScript strict. No `any`. Zod schemas as source of truth. |
+| **Accessibility** | WCAG AA minimum. `aria-label`, `role`, focus management on all interactive components. Color contrast audit before Phase 4. |
+| **Bundle size** | Target <500KB gzipped initial load. Dynamic-import mermaid, graph libs. Audit with `vite-bundle-visualizer`. |
+| **Backward compat** | YAML `version: 1` frozen. New features in `version: 2` with migration. |
+| **Feedback loops** | Telemetry (opt-in), design partner check-ins, GitHub Discussions for community. |
+| **Documentation** | Each package gets README. Component states documented. No separate docs site until Phase 6. |
 
 ---
 
 ## Dependency Graph
 
 ```
-Phase 1 (Foundation)
-    ├──→ Phase 2 (Crew Runtime)
-    │        └──→ Phase 5 (Enterprise)
-    ├──→ Phase 3 (Studio v1.1)
-    │        └──→ Phase 5 (Enterprise)
-    └──→ Phase 4 (Design System)
-             └──→ Phase 5 (Enterprise)
+Phase 0 (Ship Crew)
+    │
+Phase 1 (Foundation + CI)
+    ├──→ Phase 2 (Crew Runtime)  ──→ Phase 6
+    ├──→ Phase 3 (Design Foundations) ──→ Phase 4 (Studio v1.1) ──→ Phase 6
+    └──→ Phase 5 (Observability) ──→ Phase 6
 ```
 
-Phases 2, 3, and 4 can run **in parallel** once Phase 1 is done.
-Phase 5 depends on all three.
+Phase 0 → 1 is sequential. Phases 2, 3, 5 run in parallel after Phase 1. Phase 4 depends on Phase 3. Phase 6 depends on all.
 
 ---
 
-## Priority Stack (What to Build First)
+## Priority Stack (If Time Is Limited)
 
-If time is limited, this is the ranked order of highest-impact items across all phases:
-
-1. **1.1 + 1.2** — Consolidate types + deduplicate crew/harness (unlocks everything)
-2. **2.1** — Real provider integration for crew (makes crew usable without Studio)
-3. **3.2** — Code-aware tree indexer (biggest competitive differentiator for Studio)
-4. **3.1** — Context graph UI (demo wow factor)
-5. **1.4** — Monorepo CI (prevents regressions)
-6. **3.6** — Export to CLI (bridges Studio → Crew → real usage)
-7. **2.2** — CLI polish (makes crew feel professional)
-8. **3.3** — Dual-agent qualification loop (novel, defensible)
-9. **4.1** — Extract design system (long-term velocity)
-10. **5.4** — npm publish (distribution)
+| # | Task | Impact |
+|---|------|--------|
+| 1 | **npm publish Crew + demo mode** (0.1, 0.2) | Users can try it in 2 minutes |
+| 2 | **Monorepo CI** (1.1) | Safety net for everything else |
+| 3 | **Reconcile types + dedup** (1.3, 1.4) | Unlocks cross-package work |
+| 4 | **Real providers** (2.1) | Crew works without Studio |
+| 5 | **Landing page** (0.3) | Distribution |
+| 6 | **Export Studio → Crew** (2.7) | Bridges both products |
+| 7 | **Code-aware tree indexer** (4.1) | Biggest differentiator |
+| 8 | **ThemeProvider + primitive extraction** (3.2, 3.3) | Foundation for Studio features |
+| 9 | **Dual-agent qualification** (4.4) | Novel, defensible |
+| 10 | **Context Graph Tier 1** (4.2) | Demo wow factor |
 
 ---
 
-*"Context engineering > prompt engineering" — this plan makes that real, from foundation to distribution.*
+## Moat Reality Check (from VC Review)
+
+| Claimed IP | Defensibility | Verdict |
+|------------|--------------|---------|
+| Tree-aware retrieval | Hard to replicate (2+ months) | **Real moat** |
+| Dual-agent qualification loop | Novel pattern, non-trivial | **Real moat** |
+| Knowledge Type System | Good design, replicable in 2-4 weeks | Moderate |
+| Depth Mixer | Good design, replicable in 2-4 weeks | Moderate |
+| Metaprompt V2 | Prompt chain | Weak |
+| Auto-lessons | Feedback loop | Weak |
+| Cost intelligence | If/else on model selection | Weak |
+| 14 native connectors | Integration work | Weak |
+
+**Focus investment on the two real moats.** Everything else is table stakes.
+
+---
+
+## Key Metrics to Track
+
+| Metric | Target (90 days) |
+|--------|-----------------|
+| npm installs (Crew) | 500+ |
+| GitHub stars | 200+ |
+| Successful `crew run` completions | 100+ |
+| Design partners with weekly usage | 10 |
+| Token savings validated (3-5x claim) | 3 case studies |
+| Studio v1.1 shipped | Yes |
+
+---
+
+*"Context engineering > prompt engineering" — but only if someone can install it.*
+
+**Reviewed by:** Backend, Frontend, UI/UX, Design Systems, CPO, VC  
+**v2 changes:** Distribution-first sequencing, realistic scope, accessibility, error taxonomy, Crew-led strategy, honest moat assessment.
