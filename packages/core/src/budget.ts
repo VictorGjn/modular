@@ -19,6 +19,8 @@ const MODEL_PRICING: Record<string, { input: number; output: number }> = {
   'claude-3-opus-20240229': { input: 15, output: 75 },
   'gpt-4o': { input: 2.5, output: 10 },
   'gpt-4o-mini': { input: 0.15, output: 0.6 },
+  'gpt-4.1': { input: 2, output: 8 },
+  'gpt-4.1-mini': { input: 0.4, output: 1.6 },
   'mock-model': { input: 0, output: 0 },
 };
 
